@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import ReactDOM from "react-dom/client";
 
 const SEED_USERS = [
@@ -12,25 +12,45 @@ const SEED_USERS = [
   { id:8, name:"David Brown",   email:"david@co.com",    pwd:"pass123",  role:"department", dept:"Marketing",  status:"active" },
 ];
 const SEED_REQS = [
-  { id:1, uid:5, uname:"Alice Smith",  dept:"IT",         vendor:"TechSupplies Inc",  amt:15000, desc:"Server hardware purchase",    inv:"INV-2024-001.pdf", status:"pending",   date:"2026-02-28", mgrNote:"",                       finNote:"",                 trsNote:"" },
-  { id:2, uid:6, uname:"Bob Jones",    dept:"HR",         vendor:"TrainingCo",        amt:8500,  desc:"Employee training materials", inv:"INV-2024-002.pdf", status:"approved",  date:"2026-02-25", mgrNote:"Approved for Q1 training", finNote:"",                 trsNote:"" },
-  { id:3, uid:7, uname:"Carol White",  dept:"Facilities", vendor:"CleanPro Services", amt:3200,  desc:"Monthly cleaning contract",   inv:"INV-2024-003.pdf", status:"initiated", date:"2026-02-20", mgrNote:"Approved",                finNote:"Payment via NEFT", trsNote:"" },
-  { id:4, uid:8, uname:"David Brown",  dept:"Marketing",  vendor:"AdAgency Pro",      amt:45000, desc:"Q1 Marketing Campaign",       inv:"INV-2024-004.pdf", status:"paid",      date:"2026-02-15", mgrNote:"Approved",                finNote:"Processed",        trsNote:"Wire transfer TXN#8821" },
+  { id:1, uid:5, uname:"Alice Smith",  dept:"IT",         vendor:"TechSupplies Inc",  amt:15000, desc:"Server hardware purchase",    inv:"INV-2024-001.pdf", status:"pending",   date:"2026-02-28", mgrNote:"", finNote:"", trsNote:"" },
+  { id:2, uid:6, uname:"Bob Jones",    dept:"HR",         vendor:"TrainingCo",        amt:8500,  desc:"Employee training materials", inv:"INV-2024-002.pdf", status:"approved",  date:"2026-02-25", mgrNote:"Approved for Q1 training", finNote:"", trsNote:"" },
+  { id:3, uid:7, uname:"Carol White",  dept:"Facilities", vendor:"CleanPro Services", amt:3200,  desc:"Monthly cleaning contract",   inv:"INV-2024-003.pdf", status:"initiated", date:"2026-02-20", mgrNote:"Approved", finNote:"Payment via NEFT", trsNote:"" },
+  { id:4, uid:8, uname:"David Brown",  dept:"Marketing",  vendor:"AdAgency Pro",      amt:45000, desc:"Q1 Marketing Campaign",       inv:"INV-2024-004.pdf", status:"paid",      date:"2026-02-15", mgrNote:"Approved", finNote:"Processed", trsNote:"Wire transfer TXN#8821" },
 ];
+
+// ✅ మీ EmailJS details ఇక్కడ పెట్టండి
+const EMAILJS_SERVICE_ID  = "service_ps71mwi";
+const EMAILJS_TEMPLATE_ID = "template_keuyr7l";
 
 const DEPTS = ["IT","HR","Facilities","Marketing"];
 const ROLES = ["department","manager","finance","treasury","admin"];
-const fmt = n => "₹"+Number(n).toLocaleString("en-IN");
-const tdy = () => new Date().toISOString().split("T")[0];
-let nxtId = 300;
+const fmt   = n => "₹"+Number(n).toLocaleString("en-IN");
+const tdy   = () => new Date().toISOString().split("T")[0];
+let nxtId   = 300;
+
+// ── EMAIL SENDER ──────────────────────────────────────────────────────────
+async function sendInviteEmail({ toName, toEmail, role, dept, pwd, appUrl }) {
+  try {
+    await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+      to_name:    toName,
+      to_email:   toEmail,
+      role:       role.charAt(0).toUpperCase() + role.slice(1),
+      department: dept || "N/A",
+      email:      toEmail,
+      password:   pwd,
+      app_url:    appUrl || window.location.origin,
+    });
+    return true;
+  } catch (err) {
+    console.error("Email send failed:", err);
+    return false;
+  }
+}
 
 // ── localStorage HOOK ─────────────────────────────────────────────────────
 function useLocalState(key, seed) {
   const [state, setState] = useState(() => {
-    try {
-      const saved = localStorage.getItem(key);
-      return saved ? JSON.parse(saved) : seed;
-    } catch { return seed; }
+    try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : seed; } catch { return seed; }
   });
   const set = val => {
     const next = typeof val === "function" ? val(state) : val;
@@ -69,37 +89,12 @@ const Modal = ({ title, children, onClose }) => (
     </div>
   </div>
 );
-const FInput = ({ label, ...p }) => (
-  <div>
-    <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">{label}</label>
-    <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" {...p}/>
-  </div>
-);
-const FSelect = ({ label, children, ...p }) => (
-  <div>
-    <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">{label}</label>
-    <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" {...p}>{children}</select>
-  </div>
-);
-const FTextarea = ({ label, ...p }) => (
-  <div>
-    <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">{label}</label>
-    <textarea className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" rows={3} {...p}/>
-  </div>
-);
-const PageTitle = ({ title, sub }) => (
-  <div className="mb-6">
-    <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
-    {sub&&<p className="text-sm text-gray-500 mt-0.5">{sub}</p>}
-  </div>
-);
-const Empty = ({ icon, msg, sub }) => (
-  <div className="text-center py-16">
-    <div className="text-5xl mb-3">{icon}</div>
-    <p className="font-semibold text-gray-600">{msg}</p>
-    {sub&&<p className="text-sm text-gray-400 mt-1">{sub}</p>}
-  </div>
-);
+const FInput    = ({ label, ...p }) => (<div><label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">{label}</label><input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" {...p}/></div>);
+const FSelect   = ({ label, children, ...p }) => (<div><label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">{label}</label><select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" {...p}>{children}</select></div>);
+const FTextarea = ({ label, ...p }) => (<div><label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">{label}</label><textarea className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" rows={3} {...p}/></div>);
+const PageTitle = ({ title, sub }) => (<div className="mb-6"><h2 className="text-2xl font-bold text-gray-800">{title}</h2>{sub&&<p className="text-sm text-gray-500 mt-0.5">{sub}</p>}</div>);
+const Empty     = ({ icon, msg, sub }) => (<div className="text-center py-16"><div className="text-5xl mb-3">{icon}</div><p className="font-semibold text-gray-600">{msg}</p>{sub&&<p className="text-sm text-gray-400 mt-1">{sub}</p>}</div>);
+
 const WorkflowSteps = ({ status }) => {
   const steps=["Submitted","Approved","Initiated","Paid"];
   const idx={pending:0,rejected:0,approved:1,initiated:2,paid:3};
@@ -143,10 +138,7 @@ function ReqCard({ r, actions }) {
         </div>
         <div className="text-right flex-shrink-0">
           <p className="text-lg font-bold text-gray-800">{fmt(r.amt)}</p>
-          <div className="flex flex-col gap-1 mt-2">
-            {actions}
-            <button onClick={()=>setOpen(true)} className="text-xs text-blue-500 hover:underline">Details</button>
-          </div>
+          <div className="flex flex-col gap-1 mt-2">{actions}<button onClick={()=>setOpen(true)} className="text-xs text-blue-500 hover:underline">Details</button></div>
         </div>
       </div>
       {open&&<Modal title="Request Details" onClose={()=>setOpen(false)}>
@@ -162,6 +154,84 @@ function ReqCard({ r, actions }) {
       </Modal>}
     </div>
   );
+}
+
+// ── ADMIN INVITE (with EmailJS) ───────────────────────────────────────────
+function AdminInvite({invites,setInvites,users,setUsers,notify}){
+  const [f,setF]       = useState({name:"",email:"",role:"department",dept:"IT"});
+  const [creds,setCreds] = useState(null);
+  const [sending,setSending] = useState(false);
+
+  const send = async () => {
+    if(!f.name||!f.email){notify("Fill all fields",false);return;}
+    if(users.find(u=>u.email===f.email)){notify("Email already exists",false);return;}
+    setSending(true);
+    const pwd = "Tmp@"+Math.floor(1000+Math.random()*9000);
+    const nu  = {id:++nxtId,name:f.name,email:f.email,pwd,role:f.role,dept:f.role==="department"?f.dept:null,status:"active"};
+    setUsers(us=>[...us,nu]);
+    setInvites(iv=>[...iv,{...nu,invitedAt:tdy()}]);
+    // Send email
+    const sent = await sendInviteEmail({
+      toName:  f.name,
+      toEmail: f.email,
+      role:    f.role,
+      dept:    f.role==="department"?f.dept:null,
+      pwd,
+    });
+    setSending(false);
+    setF({name:"",email:"",role:"department",dept:"IT"});
+    setCreds({name:f.name,email:f.email,pwd,emailSent:sent});
+  };
+
+  return <>
+    <PageTitle title="Invite Users" sub="Add new members — they will receive an email with login details"/>
+    <div className="grid gap-5 lg:grid-cols-2">
+      <div className="bg-white rounded-xl shadow-sm p-5">
+        <h3 className="font-bold text-gray-700 mb-4">New Invitation</h3>
+        <div className="space-y-3">
+          <FInput label="Full Name *" value={f.name} onChange={e=>setF({...f,name:e.target.value})} placeholder="Jane Doe"/>
+          <FInput label="Email Address *" type="email" value={f.email} onChange={e=>setF({...f,email:e.target.value})} placeholder="jane@company.com"/>
+          <FSelect label="Assign Role" value={f.role} onChange={e=>setF({...f,role:e.target.value})}>{ROLES.map(r=><option key={r} value={r}>{r.charAt(0).toUpperCase()+r.slice(1)}</option>)}</FSelect>
+          {f.role==="department"&&<FSelect label="Department" value={f.dept} onChange={e=>setF({...f,dept:e.target.value})}>{DEPTS.map(d=><option key={d} value={d}>{d}</option>)}</FSelect>}
+          <button onClick={send} disabled={sending} className={`w-full text-white font-bold py-2.5 rounded-xl text-sm transition ${sending?"bg-blue-400 cursor-not-allowed":"bg-blue-600 hover:bg-blue-700"}`}>
+            {sending?"✉️ Sending Email...":"✉️ Send Invite & Create Account"}
+          </button>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-xs text-yellow-700">
+            ⚙️ Email పని చేయాలంటే <strong>index.html</strong> లో మీ EmailJS keys పెట్టాలి. Setup guide కోసం Admin → Settings చూడండి.
+          </div>
+        </div>
+      </div>
+      <div className="bg-white rounded-xl shadow-sm p-5">
+        <h3 className="font-bold text-gray-700 mb-4">Sent Invites ({invites.length})</h3>
+        {invites.length===0?<Empty icon="📬" msg="No invites sent yet"/>:
+          <div className="space-y-2 max-h-72 overflow-y-auto">{invites.map(iv=>(
+            <div key={iv.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+              <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm flex-shrink-0">{iv.name[0]}</div>
+              <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-gray-800 truncate">{iv.name}</p><p className="text-xs text-gray-400 capitalize">{iv.role}{iv.dept?` · ${iv.dept}`:""} · {iv.invitedAt}</p></div>
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">✉️ Sent</span>
+            </div>
+          ))}</div>}
+      </div>
+    </div>
+
+    {creds&&<Modal title={creds.emailSent?"Invite Sent! ✅":"Account Created ✅"} onClose={()=>setCreds(null)}>
+      <div className="text-center space-y-4">
+        <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto text-3xl ${creds.emailSent?"bg-green-100":"bg-yellow-100"}`}>
+          {creds.emailSent?"📧":"🎉"}
+        </div>
+        {creds.emailSent
+          ? <p className="text-sm text-gray-600"><strong>{creds.name}</strong> కి email వెళ్ళింది! Login details తో సహా.</p>
+          : <p className="text-sm text-orange-600">⚠️ Email వెళ్ళలేదు — EmailJS setup చేయండి. ఈ credentials manually share చేయండి:</p>}
+        <div className="bg-gray-50 border rounded-xl p-4 text-left space-y-2 text-sm">
+          <p><span className="text-gray-400">Email:</span> <strong className="text-gray-800">{creds.email}</strong></p>
+          <p><span className="text-gray-400">Password:</span> <strong className="text-gray-800">{creds.pwd}</strong></p>
+          <p><span className="text-gray-400">App URL:</span> <strong className="text-gray-800">{window.location.origin}</strong></p>
+        </div>
+        <p className="text-xs text-gray-400">User first login తర్వాత password change చేయమని చెప్పండి.</p>
+        <button onClick={()=>setCreds(null)} className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-semibold text-sm">Done</button>
+      </div>
+    </Modal>}
+  </>;
 }
 
 // ── ADMIN ─────────────────────────────────────────────────────────────────
@@ -199,7 +269,7 @@ function AdminUsers({users,setUsers,notify}){
   const save=id=>{setUsers(us=>us.map(u=>u.id===id?{...u,...form}:u));setEditing(null);notify("User updated!");};
   const toggle=id=>{setUsers(us=>us.map(u=>u.id===id?{...u,status:u.status==="active"?"inactive":"active"}:u));notify("Status updated.");};
   return <>
-    <PageTitle title="Users & Roles" sub="Manage team members and permissions"/>
+    <PageTitle title="Users & Roles"/>
     <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-gray-50 text-xs text-gray-500 uppercase"><tr>{["Name","Email","Role","Dept","Status","Actions"].map(h=><th key={h} className="px-4 py-3 text-left whitespace-nowrap">{h}</th>)}</tr></thead>
@@ -211,8 +281,8 @@ function AdminUsers({users,setUsers,notify}){
             <td className="px-4 py-3">{editing===u.id?<select value={form.dept||""} onChange={e=>setForm({...form,dept:e.target.value||null})} className="border rounded px-2 py-1 text-xs"><option value="">None</option>{DEPTS.map(d=><option key={d} value={d}>{d}</option>)}</select>:u.dept||"—"}</td>
             <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${u.status==="active"?"bg-green-100 text-green-700":"bg-gray-100 text-gray-500"}`}>{u.status}</span></td>
             <td className="px-4 py-3"><div className="flex gap-1">{editing===u.id
-              ?<><button onClick={()=>save(u.id)} className="text-xs bg-blue-600 text-white px-2.5 py-1 rounded-lg">Save</button><button onClick={()=>setEditing(null)} className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-lg">Cancel</button></>
-              :<><button onClick={()=>{setEditing(u.id);setForm({role:u.role,dept:u.dept});}} className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded-lg">Edit</button><button onClick={()=>toggle(u.id)} className={`text-xs px-2.5 py-1 rounded-lg ${u.status==="active"?"bg-red-50 text-red-600":"bg-green-50 text-green-600"}`}>{u.status==="active"?"Deactivate":"Activate"}</button></>
+              ?<><button onClick={()=>save(u.id)} className="text-xs bg-blue-600 text-white px-2.5 py-1 rounded-lg">Save</button><button onClick={()=>setEditing(null)} className="text-xs bg-gray-100 px-2.5 py-1 rounded-lg">Cancel</button></>
+              :<><button onClick={()=>{setEditing(u.id);setForm({role:u.role,dept:u.dept});}} className="text-xs bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded-lg">Edit</button><button onClick={()=>toggle(u.id)} className={`text-xs px-2.5 py-1 rounded-lg ${u.status==="active"?"bg-red-50 text-red-600":"bg-green-50 text-green-600"}`}>{u.status==="active"?"Deactivate":"Activate"}</button></>
             }</div></td>
           </tr>
         ))}</tbody>
@@ -220,294 +290,189 @@ function AdminUsers({users,setUsers,notify}){
     </div>
   </>;
 }
-function AdminInvite({invites,setInvites,users,setUsers,notify}){
-  const [f,setF]=useState({name:"",email:"",role:"department",dept:"IT"}),[creds,setCreds]=useState(null);
-  const send=()=>{
-    if(!f.name||!f.email){notify("Fill all fields",false);return;}
-    if(users.find(u=>u.email===f.email)){notify("Email already exists",false);return;}
-    const pwd="Tmp@"+Math.floor(1000+Math.random()*9000);
-    const nu={id:++nxtId,name:f.name,email:f.email,pwd,role:f.role,dept:f.role==="department"?f.dept:null,status:"active"};
-    setUsers(us=>[...us,nu]);
-    setInvites(iv=>[...iv,{...nu,invitedAt:tdy()}]);
-    setF({name:"",email:"",role:"department",dept:"IT"});
-    setCreds({name:f.name,email:f.email,pwd});
-  };
-  return <>
-    <PageTitle title="Invite Users" sub="Add new members and assign their role"/>
-    <div className="grid gap-5 lg:grid-cols-2">
-      <div className="bg-white rounded-xl shadow-sm p-5">
-        <h3 className="font-bold text-gray-700 mb-4">New Invitation</h3>
-        <div className="space-y-3">
-          <FInput label="Full Name *" value={f.name} onChange={e=>setF({...f,name:e.target.value})} placeholder="Jane Doe"/>
-          <FInput label="Email *" type="email" value={f.email} onChange={e=>setF({...f,email:e.target.value})} placeholder="jane@company.com"/>
-          <FSelect label="Assign Role" value={f.role} onChange={e=>setF({...f,role:e.target.value})}>{ROLES.map(r=><option key={r} value={r}>{r.charAt(0).toUpperCase()+r.slice(1)}</option>)}</FSelect>
-          {f.role==="department"&&<FSelect label="Department" value={f.dept} onChange={e=>setF({...f,dept:e.target.value})}>{DEPTS.map(d=><option key={d} value={d}>{d}</option>)}</FSelect>}
-          <button onClick={send} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-sm">Send Invite & Create Account</button>
-        </div>
-      </div>
-      <div className="bg-white rounded-xl shadow-sm p-5">
-        <h3 className="font-bold text-gray-700 mb-4">Sent Invites ({invites.length})</h3>
-        {invites.length===0?<Empty icon="📬" msg="No invites sent yet"/>:
-          <div className="space-y-2 max-h-72 overflow-y-auto">{invites.map(iv=>(
-            <div key={iv.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-              <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm flex-shrink-0">{iv.name[0]}</div>
-              <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-gray-800 truncate">{iv.name}</p><p className="text-xs text-gray-400 capitalize">{iv.role}{iv.dept?` · ${iv.dept}`:""}</p></div>
-              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">Active</span>
-            </div>
-          ))}</div>}
-      </div>
-    </div>
-    {creds&&<Modal title="Account Created ✅" onClose={()=>setCreds(null)}>
-      <div className="text-center space-y-4">
-        <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto text-3xl">🎉</div>
-        <p className="text-sm text-gray-600">Share these credentials with <strong>{creds.name}</strong></p>
-        <div className="bg-gray-50 border rounded-xl p-4 text-left space-y-2 text-sm">
-          <p><span className="text-gray-400">Email:</span> <strong>{creds.email}</strong></p>
-          <p><span className="text-gray-400">Password:</span> <strong>{creds.pwd}</strong></p>
-        </div>
-        <p className="text-xs text-gray-400">Ask the user to change their password after first login.</p>
-        <button onClick={()=>setCreds(null)} className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-semibold text-sm">Done</button>
-      </div>
-    </Modal>}
-  </>;
-}
 function AdminAllReqs({reqs}){
   const [f,setF]=useState("all");
   const list=f==="all"?reqs:reqs.filter(r=>r.status===f);
   return <>
-    <PageTitle title="All Requests" sub="Complete payment request audit trail"/>
-    <div className="flex flex-wrap gap-2 mb-4">
-      {["all","pending","approved","initiated","paid","rejected"].map(s=>(
-        <button key={s} onClick={()=>setF(s)} className={`text-xs px-3 py-1.5 rounded-full capitalize font-semibold transition ${f===s?"bg-blue-600 text-white shadow":"bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}>
-          {s} ({s==="all"?reqs.length:reqs.filter(r=>r.status===s).length})
-        </button>
-      ))}
-    </div>
-    {list.length===0?<Empty icon="🔍" msg="No requests found"/>:<div className="space-y-3">{list.map(r=><ReqCard key={r.id} r={r} actions={null}/>)}</div>}
+    <PageTitle title="All Requests"/>
+    <div className="flex flex-wrap gap-2 mb-4">{["all","pending","approved","initiated","paid","rejected"].map(s=>(
+      <button key={s} onClick={()=>setF(s)} className={`text-xs px-3 py-1.5 rounded-full capitalize font-semibold transition ${f===s?"bg-blue-600 text-white shadow":"bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}>
+        {s} ({s==="all"?reqs.length:reqs.filter(r=>r.status===s).length})
+      </button>
+    ))}</div>
+    {list.length===0?<Empty icon="🔍" msg="No requests"/>:<div className="space-y-3">{list.map(r=><ReqCard key={r.id} r={r} actions={null}/>)}</div>}
   </>;
 }
 
 // ── MANAGER ───────────────────────────────────────────────────────────────
 function ManagerView({tab,reqs,updateReq,notify}){
-  if(tab==="dashboard") return <ManagerDash reqs={reqs}/>;
-  if(tab==="pending")   return <ManagerPending reqs={reqs} updateReq={updateReq} notify={notify}/>;
-  if(tab==="history")   return <GenHistory reqs={reqs.filter(r=>["approved","rejected","initiated","paid"].includes(r.status))} title="Approval History"/>;
-  return null;
-}
-function ManagerDash({reqs}){
-  const p=reqs.filter(r=>r.status==="pending"),a=reqs.filter(r=>["approved","initiated","paid"].includes(r.status)),rj=reqs.filter(r=>r.status==="rejected");
-  return <>
-    <PageTitle title="Manager Dashboard" sub="Review and action payment requests"/>
-    <div className="grid grid-cols-2 gap-3 mb-6">
-      <StatCard title="Pending Review" value={p.length} color="bg-yellow-500"/>
-      <StatCard title="Approved" value={a.length} color="bg-blue-600"/>
-      <StatCard title="Rejected" value={rj.length} color="bg-red-500"/>
-      <StatCard title="Pending Amount" value={fmt(p.reduce((s,r)=>s+r.amt,0))} color="bg-indigo-600"/>
-    </div>
-    {reqs.length>0&&<div className="bg-white rounded-xl shadow-sm p-4"><h3 className="font-bold text-gray-700 mb-3">Recent Requests</h3><div className="space-y-2">{reqs.slice(-3).reverse().map(r=><MiniRow key={r.id} r={r}/>)}</div></div>}
-  </>;
-}
-function ManagerPending({reqs,updateReq,notify}){
-  const pending=reqs.filter(r=>r.status==="pending");
-  const [sel,setSel]=useState(null),[note,setNote]=useState(""),[act,setAct]=useState("");
-  const go=()=>{updateReq(sel.id,{status:act==="approve"?"approved":"rejected",mgrNote:note});setSel(null);setNote("");setAct("");notify(act==="approve"?"Request approved! ✅":"Request rejected.");};
-  return <>
-    <PageTitle title="Pending Approvals" sub={`${pending.length} request(s) awaiting your decision`}/>
-    {pending.length===0?<Empty icon="✅" msg="All caught up!" sub="No pending requests right now."/>:
-      <div className="space-y-3">{pending.map(r=><ReqCard key={r.id} r={r} actions={
-        <div className="flex gap-1">
-          <button onClick={()=>{setSel(r);setAct("approve");}} className="text-xs bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1.5 rounded-lg font-semibold">Approve</button>
-          <button onClick={()=>{setSel(r);setAct("reject");}} className="text-xs bg-red-50 hover:bg-red-100 text-red-700 px-3 py-1.5 rounded-lg font-semibold">Reject</button>
-        </div>
-      }/>)}</div>}
-    {sel&&<Modal title={act==="approve"?"Approve Request":"Reject Request"} onClose={()=>setSel(null)}>
-      <div className="space-y-3">
-        <div className={`rounded-xl p-3 text-sm ${act==="approve"?"bg-green-50":"bg-red-50"}`}><p className="font-bold text-gray-800">{sel.vendor}</p><p className="text-gray-500">{fmt(sel.amt)} · {sel.dept}</p></div>
-        <FTextarea label={act==="approve"?"Note (optional)":"Rejection Reason *"} value={note} onChange={e=>setNote(e.target.value)} placeholder={act==="approve"?"Add any comments...":"Please state the reason..."}/>
-        <div className="flex gap-2">
-          <button onClick={go} className={`flex-1 text-white font-bold py-2.5 rounded-xl text-sm ${act==="approve"?"bg-green-600 hover:bg-green-700":"bg-red-600 hover:bg-red-700"}`}>{act==="approve"?"Confirm Approval":"Confirm Rejection"}</button>
-          <button onClick={()=>setSel(null)} className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
-        </div>
+  if(tab==="dashboard"){
+    const p=reqs.filter(r=>r.status==="pending"),a=reqs.filter(r=>["approved","initiated","paid"].includes(r.status)),rj=reqs.filter(r=>r.status==="rejected");
+    return <><PageTitle title="Manager Dashboard"/>
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <StatCard title="Pending Review" value={p.length} color="bg-yellow-500"/>
+        <StatCard title="Approved" value={a.length} color="bg-blue-600"/>
+        <StatCard title="Rejected" value={rj.length} color="bg-red-500"/>
+        <StatCard title="Pending Amount" value={fmt(p.reduce((s,r)=>s+r.amt,0))} color="bg-indigo-600"/>
       </div>
-    </Modal>}
-  </>;
+      {reqs.length>0&&<div className="bg-white rounded-xl shadow-sm p-4"><h3 className="font-bold text-gray-700 mb-3">Recent Requests</h3><div className="space-y-2">{reqs.slice(-3).reverse().map(r=><MiniRow key={r.id} r={r}/>)}</div></div>}
+    </>;
+  }
+  if(tab==="pending"){
+    const pending=reqs.filter(r=>r.status==="pending");
+    const [sel,setSel]=useState(null),[note,setNote]=useState(""),[act,setAct]=useState("");
+    const go=()=>{updateReq(sel.id,{status:act==="approve"?"approved":"rejected",mgrNote:note});setSel(null);setNote("");setAct("");notify(act==="approve"?"Approved! ✅":"Rejected.");};
+    return <><PageTitle title="Pending Approvals" sub={`${pending.length} pending`}/>
+      {pending.length===0?<Empty icon="✅" msg="All caught up!"/>:<div className="space-y-3">{pending.map(r=><ReqCard key={r.id} r={r} actions={<div className="flex gap-1"><button onClick={()=>{setSel(r);setAct("approve");}} className="text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-lg font-semibold">Approve</button><button onClick={()=>{setSel(r);setAct("reject");}} className="text-xs bg-red-50 text-red-700 px-3 py-1.5 rounded-lg font-semibold">Reject</button></div>}/>)}</div>}
+      {sel&&<Modal title={act==="approve"?"Approve Request":"Reject Request"} onClose={()=>setSel(null)}>
+        <div className="space-y-3">
+          <div className={`rounded-xl p-3 text-sm ${act==="approve"?"bg-green-50":"bg-red-50"}`}><p className="font-bold">{sel.vendor}</p><p className="text-gray-500">{fmt(sel.amt)} · {sel.dept}</p></div>
+          <FTextarea label="Note" value={note} onChange={e=>setNote(e.target.value)} placeholder="Add note..."/>
+          <div className="flex gap-2"><button onClick={go} className={`flex-1 text-white font-bold py-2.5 rounded-xl text-sm ${act==="approve"?"bg-green-600":"bg-red-600"}`}>{act==="approve"?"Confirm Approval":"Confirm Rejection"}</button><button onClick={()=>setSel(null)} className="flex-1 bg-gray-100 py-2.5 rounded-xl text-sm">Cancel</button></div>
+        </div>
+      </Modal>}
+    </>;
+  }
+  if(tab==="history") return <GenHistory reqs={reqs.filter(r=>["approved","rejected","initiated","paid"].includes(r.status))} title="Approval History"/>;
+  return null;
 }
 
 // ── FINANCE ───────────────────────────────────────────────────────────────
 function FinanceView({tab,reqs,updateReq,notify}){
-  if(tab==="dashboard") return <FinanceDash reqs={reqs}/>;
-  if(tab==="report")    return <FinanceReport reqs={reqs} updateReq={updateReq} notify={notify}/>;
-  if(tab==="history")   return <GenHistory reqs={reqs.filter(r=>["initiated","paid"].includes(r.status))} title="Finance History"/>;
-  return null;
-}
-function FinanceDash({reqs}){
-  const a=reqs.filter(r=>r.status==="approved"),i=reqs.filter(r=>r.status==="initiated"),p=reqs.filter(r=>r.status==="paid");
-  return <>
-    <PageTitle title="Finance Dashboard" sub="Payment processing and initiation"/>
-    <div className="grid grid-cols-2 gap-3 mb-6">
-      <StatCard title="Awaiting Initiation" value={a.length} color="bg-blue-600"/>
-      <StatCard title="Initiated" value={i.length} color="bg-purple-600"/>
-      <StatCard title="Paid" value={p.length} color="bg-green-600"/>
-      <StatCard title="Total Initiated" value={fmt([...i,...p].reduce((s,r)=>s+r.amt,0))} color="bg-indigo-600"/>
-    </div>
-    {reqs.length>0&&<div className="bg-white rounded-xl shadow-sm p-4"><h3 className="font-bold text-gray-700 mb-3">Recent Activity</h3><div className="space-y-2">{reqs.filter(r=>["approved","initiated","paid"].includes(r.status)).slice(-3).reverse().map(r=><MiniRow key={r.id} r={r}/>)}</div></div>}
-  </>;
-}
-function FinanceReport({reqs,updateReq,notify}){
-  const approved=reqs.filter(r=>r.status==="approved");
-  const [sel,setSel]=useState(null),[note,setNote]=useState("");
-  const go=()=>{updateReq(sel.id,{status:"initiated",finNote:note||"Payment initiated"});setSel(null);setNote("");notify("Payment marked as initiated! 🔄");};
-  return <>
-    <PageTitle title="Payment Report" sub="Approved requests ready for payment initiation"/>
-    {approved.length===0?<Empty icon="📊" msg="No approved requests pending" sub="Manager-approved requests will appear here."/>:
-      <div className="space-y-3">{approved.map(r=><ReqCard key={r.id} r={r} actions={<button onClick={()=>setSel(r)} className="text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap">Initiate Payment</button>}/>)}</div>}
-    {sel&&<Modal title="Initiate Payment" onClose={()=>setSel(null)}>
-      <div className="space-y-3">
-        <div className="bg-purple-50 rounded-xl p-3 text-sm"><p className="font-bold text-purple-800">{sel.vendor}</p><p className="text-purple-500">{fmt(sel.amt)} · {sel.dept}</p></div>
-        <FTextarea label="Payment Reference / Mode" value={note} onChange={e=>setNote(e.target.value)} placeholder="e.g. NEFT | Ref No. 2024XXXX"/>
-        <div className="flex gap-2">
-          <button onClick={go} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl text-sm">Mark as Initiated</button>
-          <button onClick={()=>setSel(null)} className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
-        </div>
+  if(tab==="dashboard"){
+    const a=reqs.filter(r=>r.status==="approved"),i=reqs.filter(r=>r.status==="initiated"),p=reqs.filter(r=>r.status==="paid");
+    return <><PageTitle title="Finance Dashboard"/>
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <StatCard title="Awaiting Initiation" value={a.length} color="bg-blue-600"/>
+        <StatCard title="Initiated" value={i.length} color="bg-purple-600"/>
+        <StatCard title="Paid" value={p.length} color="bg-green-600"/>
+        <StatCard title="Total Initiated" value={fmt([...i,...p].reduce((s,r)=>s+r.amt,0))} color="bg-indigo-600"/>
       </div>
-    </Modal>}
-  </>;
+    </>;
+  }
+  if(tab==="report"){
+    const approved=reqs.filter(r=>r.status==="approved");
+    const [sel,setSel]=useState(null),[note,setNote]=useState("");
+    const go=()=>{updateReq(sel.id,{status:"initiated",finNote:note||"Payment initiated"});setSel(null);setNote("");notify("Initiated! 🔄");};
+    return <><PageTitle title="Payment Report" sub="Approved requests ready for initiation"/>
+      {approved.length===0?<Empty icon="📊" msg="No approved requests pending"/>:<div className="space-y-3">{approved.map(r=><ReqCard key={r.id} r={r} actions={<button onClick={()=>setSel(r)} className="text-xs bg-purple-50 text-purple-700 px-3 py-1.5 rounded-lg font-semibold">Initiate Payment</button>}/>)}</div>}
+      {sel&&<Modal title="Initiate Payment" onClose={()=>setSel(null)}>
+        <div className="space-y-3">
+          <div className="bg-purple-50 rounded-xl p-3 text-sm"><p className="font-bold text-purple-800">{sel.vendor}</p><p className="text-purple-500">{fmt(sel.amt)} · {sel.dept}</p></div>
+          <FTextarea label="Payment Reference" value={note} onChange={e=>setNote(e.target.value)} placeholder="NEFT | Ref No..."/>
+          <div className="flex gap-2"><button onClick={go} className="flex-1 bg-purple-600 text-white font-bold py-2.5 rounded-xl text-sm">Mark as Initiated</button><button onClick={()=>setSel(null)} className="flex-1 bg-gray-100 py-2.5 rounded-xl text-sm">Cancel</button></div>
+        </div>
+      </Modal>}
+    </>;
+  }
+  if(tab==="history") return <GenHistory reqs={reqs.filter(r=>["initiated","paid"].includes(r.status))} title="Finance History"/>;
+  return null;
 }
 
 // ── TREASURY ──────────────────────────────────────────────────────────────
 function TreasuryView({tab,reqs,updateReq,notify}){
-  if(tab==="dashboard") return <TreasuryDash reqs={reqs}/>;
-  if(tab==="initiated") return <TreasuryInitiated reqs={reqs} updateReq={updateReq} notify={notify}/>;
-  if(tab==="history")   return <GenHistory reqs={reqs.filter(r=>r.status==="paid")} title="Payment History"/>;
-  return null;
-}
-function TreasuryDash({reqs}){
-  const i=reqs.filter(r=>r.status==="initiated"),p=reqs.filter(r=>r.status==="paid");
-  return <>
-    <PageTitle title="Treasury Dashboard" sub="Final payment execution and confirmation"/>
-    <div className="grid grid-cols-2 gap-3 mb-6">
-      <StatCard title="Awaiting Payment" value={i.length} color="bg-purple-600"/>
-      <StatCard title="Completed" value={p.length} color="bg-green-600"/>
-      <StatCard title="Pending Amount" value={fmt(i.reduce((s,r)=>s+r.amt,0))} color="bg-yellow-500"/>
-      <StatCard title="Total Paid" value={fmt(p.reduce((s,r)=>s+r.amt,0))} color="bg-blue-600"/>
-    </div>
-    {reqs.length>0&&<div className="bg-white rounded-xl shadow-sm p-4"><h3 className="font-bold text-gray-700 mb-3">Recent Activity</h3><div className="space-y-2">{reqs.filter(r=>["initiated","paid"].includes(r.status)).slice(-3).reverse().map(r=><MiniRow key={r.id} r={r}/>)}</div></div>}
-  </>;
-}
-function TreasuryInitiated({reqs,updateReq,notify}){
-  const initiated=reqs.filter(r=>r.status==="initiated");
-  const [sel,setSel]=useState(null),[note,setNote]=useState("");
-  const go=()=>{updateReq(sel.id,{status:"paid",trsNote:note||"Payment completed"});setSel(null);setNote("");notify("Payment marked as PAID! 💰");};
-  return <>
-    <PageTitle title="Initiated Payments" sub="Payments ready for final confirmation"/>
-    {initiated.length===0?<Empty icon="💰" msg="No payments awaiting execution" sub="Finance-initiated payments will appear here."/>:
-      <div className="space-y-3">{initiated.map(r=><ReqCard key={r.id} r={r} actions={<button onClick={()=>setSel(r)} className="text-xs bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap">Mark as Paid</button>}/>)}</div>}
-    {sel&&<Modal title="Confirm Payment Completed" onClose={()=>setSel(null)}>
-      <div className="space-y-3">
-        <div className="bg-green-50 rounded-xl p-3 text-sm"><p className="font-bold text-green-800">{sel.vendor}</p><p className="text-green-500">{fmt(sel.amt)} · {sel.dept}</p></div>
-        <FTextarea label="Transaction ID / Reference" value={note} onChange={e=>setNote(e.target.value)} placeholder="e.g. Wire Ref. TXN#8821"/>
-        <div className="flex gap-2">
-          <button onClick={go} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-xl text-sm">Confirm Payment Paid</button>
-          <button onClick={()=>setSel(null)} className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-xl text-sm">Cancel</button>
-        </div>
+  if(tab==="dashboard"){
+    const i=reqs.filter(r=>r.status==="initiated"),p=reqs.filter(r=>r.status==="paid");
+    return <><PageTitle title="Treasury Dashboard"/>
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <StatCard title="Awaiting Payment" value={i.length} color="bg-purple-600"/>
+        <StatCard title="Completed" value={p.length} color="bg-green-600"/>
+        <StatCard title="Pending Amount" value={fmt(i.reduce((s,r)=>s+r.amt,0))} color="bg-yellow-500"/>
+        <StatCard title="Total Paid" value={fmt(p.reduce((s,r)=>s+r.amt,0))} color="bg-blue-600"/>
       </div>
-    </Modal>}
-  </>;
+    </>;
+  }
+  if(tab==="initiated"){
+    const initiated=reqs.filter(r=>r.status==="initiated");
+    const [sel,setSel]=useState(null),[note,setNote]=useState("");
+    const go=()=>{updateReq(sel.id,{status:"paid",trsNote:note||"Payment completed"});setSel(null);setNote("");notify("Paid! 💰");};
+    return <><PageTitle title="Initiated Payments"/>
+      {initiated.length===0?<Empty icon="💰" msg="No payments awaiting"/>:<div className="space-y-3">{initiated.map(r=><ReqCard key={r.id} r={r} actions={<button onClick={()=>setSel(r)} className="text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-lg font-semibold">Mark as Paid</button>}/>)}</div>}
+      {sel&&<Modal title="Confirm Payment" onClose={()=>setSel(null)}>
+        <div className="space-y-3">
+          <div className="bg-green-50 rounded-xl p-3 text-sm"><p className="font-bold text-green-800">{sel.vendor}</p><p className="text-green-500">{fmt(sel.amt)} · {sel.dept}</p></div>
+          <FTextarea label="Transaction ID" value={note} onChange={e=>setNote(e.target.value)} placeholder="TXN#..."/>
+          <div className="flex gap-2"><button onClick={go} className="flex-1 bg-green-600 text-white font-bold py-2.5 rounded-xl text-sm">Confirm Paid</button><button onClick={()=>setSel(null)} className="flex-1 bg-gray-100 py-2.5 rounded-xl text-sm">Cancel</button></div>
+        </div>
+      </Modal>}
+    </>;
+  }
+  if(tab==="history") return <GenHistory reqs={reqs.filter(r=>r.status==="paid")} title="Payment History"/>;
+  return null;
 }
 
 // ── DEPARTMENT ────────────────────────────────────────────────────────────
 function DeptView({tab,reqs,setReqs,user,notify}){
-  if(tab==="dashboard")   return <DeptDash reqs={reqs} user={user}/>;
-  if(tab==="new_request") return <DeptNew setReqs={setReqs} user={user} notify={notify}/>;
-  if(tab==="my_requests") return <DeptMine reqs={reqs} user={user}/>;
+  if(tab==="dashboard"){
+    const mine=reqs.filter(r=>r.uid===user.id);
+    return <><PageTitle title={`${user.dept} Department`} sub={`Welcome, ${user.name}`}/>
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <StatCard title="My Requests" value={mine.length} color="bg-blue-600"/>
+        <StatCard title="Pending" value={mine.filter(r=>r.status==="pending").length} color="bg-yellow-500"/>
+        <StatCard title="Paid" value={mine.filter(r=>r.status==="paid").length} color="bg-green-600"/>
+        <StatCard title="Total" value={fmt(mine.reduce((s,r)=>s+r.amt,0))} color="bg-indigo-600"/>
+      </div>
+      {mine.length>0&&<div className="bg-white rounded-xl shadow-sm p-4"><h3 className="font-bold text-gray-700 mb-3">My Recent Requests</h3><div className="space-y-2">{mine.slice(-3).reverse().map(r=><MiniRow key={r.id} r={r}/>)}</div></div>}
+    </>;
+  }
+  if(tab==="new_request"){
+    const [f,setF]=useState({vendor:"",amt:"",desc:"",inv:""});
+    const submit=()=>{
+      if(!f.vendor||!f.amt||!f.desc){notify("Fill required fields",false);return;}
+      setReqs(rs=>[...rs,{id:++nxtId,uid:user.id,uname:user.name,dept:user.dept,vendor:f.vendor,amt:Number(f.amt),desc:f.desc,inv:f.inv||"No invoice",status:"pending",date:tdy(),mgrNote:"",finNote:"",trsNote:""}]);
+      setF({vendor:"",amt:"",desc:"",inv:""});notify("Submitted! 🎉");
+    };
+    return <><PageTitle title="New Payment Request"/>
+      <div className="bg-white rounded-xl shadow-sm p-6 max-w-lg"><div className="space-y-4">
+        <FInput label="Vendor *" value={f.vendor} onChange={e=>setF({...f,vendor:e.target.value})} placeholder="TechSupplies Inc."/>
+        <FInput label="Amount (₹) *" type="number" value={f.amt} onChange={e=>setF({...f,amt:e.target.value})} placeholder="0.00"/>
+        <FTextarea label="Description *" value={f.desc} onChange={e=>setF({...f,desc:e.target.value})} placeholder="Purpose of payment..."/>
+        <FInput label="Invoice Reference" value={f.inv} onChange={e=>setF({...f,inv:e.target.value})} placeholder="INV-2024-055.pdf"/>
+        <div className="bg-blue-50 rounded-xl p-3 text-xs text-blue-700"><strong>Workflow:</strong> You → Manager → Finance → Treasury</div>
+        <button onClick={submit} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm">Submit Request</button>
+      </div></div>
+    </>;
+  }
+  if(tab==="my_requests"){
+    const mine=reqs.filter(r=>r.uid===user.id);
+    return <><PageTitle title="My Requests"/>
+      {mine.length===0?<Empty icon="📋" msg="No requests yet"/>:
+        <div className="space-y-3">{mine.slice().reverse().map(r=>(
+          <div key={r.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-1"><span className="font-bold text-gray-800">{r.vendor}</span><Badge status={r.status}/></div>
+                <p className="text-sm text-gray-500 mb-1">{r.desc}</p>
+                <p className="text-xs text-gray-400">{r.date} · {r.inv}</p>
+                <WorkflowSteps status={r.status}/>
+                {r.mgrNote&&<p className="text-xs text-blue-600 mt-1">💬 Manager: {r.mgrNote}</p>}
+                {r.finNote&&<p className="text-xs text-purple-600 mt-0.5">💬 Finance: {r.finNote}</p>}
+                {r.trsNote&&<p className="text-xs text-green-600 mt-0.5">💬 Treasury: {r.trsNote}</p>}
+              </div>
+              <p className="text-xl font-bold text-gray-800">{fmt(r.amt)}</p>
+            </div>
+          </div>
+        ))}</div>}
+    </>;
+  }
   return null;
 }
-function DeptDash({reqs,user}){
-  const mine=reqs.filter(r=>r.uid===user.id),p=mine.filter(r=>r.status==="pending"),done=mine.filter(r=>r.status==="paid");
-  return <>
-    <PageTitle title={`${user.dept} Department`} sub={`Welcome, ${user.name}`}/>
-    <div className="grid grid-cols-2 gap-3 mb-6">
-      <StatCard title="My Total Requests" value={mine.length} color="bg-blue-600"/>
-      <StatCard title="Pending Approval" value={p.length} color="bg-yellow-500"/>
-      <StatCard title="Paid" value={done.length} color="bg-green-600"/>
-      <StatCard title="Total Requested" value={fmt(mine.reduce((s,r)=>s+r.amt,0))} color="bg-indigo-600"/>
-    </div>
-    {mine.length>0&&<div className="bg-white rounded-xl shadow-sm p-4"><h3 className="font-bold text-gray-700 mb-3">My Recent Requests</h3><div className="space-y-2">{mine.slice(-3).reverse().map(r=><MiniRow key={r.id} r={r}/>)}</div></div>}
-  </>;
-}
-function DeptNew({setReqs,user,notify}){
-  const [f,setF]=useState({vendor:"",amt:"",desc:"",inv:""});
-  const submit=()=>{
-    if(!f.vendor||!f.amt||!f.desc){notify("Please fill all required fields",false);return;}
-    setReqs(rs=>[...rs,{id:++nxtId,uid:user.id,uname:user.name,dept:user.dept,vendor:f.vendor,amt:Number(f.amt),desc:f.desc,inv:f.inv||"No invoice attached",status:"pending",date:tdy(),mgrNote:"",finNote:"",trsNote:""}]);
-    setF({vendor:"",amt:"",desc:"",inv:""});
-    notify("Payment request submitted! 🎉");
-  };
-  return <>
-    <PageTitle title="New Payment Request"/>
-    <div className="bg-white rounded-xl shadow-sm p-6 max-w-lg">
-      <div className="space-y-4">
-        <FInput label="Vendor / Company Name *" value={f.vendor} onChange={e=>setF({...f,vendor:e.target.value})} placeholder="e.g. TechSupplies Inc."/>
-        <FInput label="Amount (₹) *" type="number" value={f.amt} onChange={e=>setF({...f,amt:e.target.value})} placeholder="0.00"/>
-        <FTextarea label="Description / Purpose *" value={f.desc} onChange={e=>setF({...f,desc:e.target.value})} placeholder="Describe what this payment is for..."/>
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Invoice Reference</label>
-          <div className="border-2 border-dashed border-gray-200 rounded-xl p-4">
-            <p className="text-center text-sm text-gray-400 mb-2">📎 Invoice Number or File Name</p>
-            <input className="w-full border border-gray-100 rounded-lg px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" placeholder="e.g. INV-2024-055.pdf" value={f.inv} onChange={e=>setF({...f,inv:e.target.value})}/>
-          </div>
-        </div>
-        <div className="bg-blue-50 rounded-xl p-3 text-xs text-blue-700">
-          <strong>Approval Workflow:</strong> Your Request → Manager Approval → Finance Initiation → Treasury Payment
-        </div>
-        <button onClick={submit} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition text-sm">Submit Payment Request</button>
-      </div>
-    </div>
-  </>;
-}
-function DeptMine({reqs,user}){
-  const mine=reqs.filter(r=>r.uid===user.id);
-  return <>
-    <PageTitle title="My Requests" sub="Track the status of your payment requests"/>
-    {mine.length===0?<Empty icon="📋" msg="No requests yet" sub="Submit your first payment request."/>:
-      <div className="space-y-3">{mine.slice().reverse().map(r=>(
-        <div key={r.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap mb-1"><span className="font-bold text-gray-800">{r.vendor}</span><Badge status={r.status}/></div>
-              <p className="text-sm text-gray-500 mb-1">{r.desc}</p>
-              <p className="text-xs text-gray-400">📅 {r.date} · 📎 {r.inv}</p>
-              <WorkflowSteps status={r.status}/>
-              {r.mgrNote&&<p className="text-xs text-blue-600 mt-1">💬 Manager: {r.mgrNote}</p>}
-              {r.finNote&&<p className="text-xs text-purple-600 mt-0.5">💬 Finance: {r.finNote}</p>}
-              {r.trsNote&&<p className="text-xs text-green-600 mt-0.5">💬 Treasury: {r.trsNote}</p>}
-            </div>
-            <p className="text-xl font-bold text-gray-800 flex-shrink-0">{fmt(r.amt)}</p>
-          </div>
-        </div>
-      ))}</div>}
-  </>;
-}
 function GenHistory({reqs,title}){
-  return <>
-    <PageTitle title={title} sub={`${reqs.length} record(s)`}/>
-    {reqs.length===0?<Empty icon="📁" msg="No records yet"/>:<div className="space-y-3">{reqs.slice().reverse().map(r=><ReqCard key={r.id} r={r} actions={null}/>)}</div>}
-  </>;
+  return <><PageTitle title={title} sub={`${reqs.length} record(s)`}/>{reqs.length===0?<Empty icon="📁" msg="No records"/>:<div className="space-y-3">{reqs.slice().reverse().map(r=><ReqCard key={r.id} r={r} actions={null}/>)}</div>}</>;
 }
 
-// ── NAV & SHELL ───────────────────────────────────────────────────────────
+// ── SHELL ─────────────────────────────────────────────────────────────────
 const NAV_MAP = {
-  admin:      [["dashboard","🏠 Dashboard"],["users","👥 Users & Roles"],["invites","✉️ Invite Users"],["all_requests","📋 All Requests"]],
-  manager:    [["dashboard","🏠 Dashboard"],["pending","⏳ Pending Approvals"],["history","📁 History"]],
-  finance:    [["dashboard","🏠 Dashboard"],["report","📊 Payment Report"],["history","📁 History"]],
-  treasury:   [["dashboard","🏠 Dashboard"],["initiated","🔄 Initiated Payments"],["history","📁 History"]],
+  admin:      [["dashboard","🏠 Dashboard"],["users","👥 Users"],["invites","✉️ Invite"],["all_requests","📋 All Requests"]],
+  manager:    [["dashboard","🏠 Dashboard"],["pending","⏳ Pending"],["history","📁 History"]],
+  finance:    [["dashboard","🏠 Dashboard"],["report","📊 Report"],["history","📁 History"]],
+  treasury:   [["dashboard","🏠 Dashboard"],["initiated","🔄 Initiated"],["history","📁 History"]],
   department: [["dashboard","🏠 Dashboard"],["new_request","➕ New Request"],["my_requests","📋 My Requests"]],
 };
 function MainApp({user,users,setUsers,reqs,setReqs,invites,setInvites,tab,setTab,notify,onLogout}){
   const updateReq=(id,patch)=>setReqs(rs=>rs.map(r=>r.id===id?{...r,...patch}:r));
   const nav=NAV_MAP[user.role]||[];
-  const pendingCount=reqs.filter(r=>r.status==="pending").length;
-  const initiatedCount=reqs.filter(r=>r.status==="initiated").length;
+  const pc=reqs.filter(r=>r.status==="pending").length,ic=reqs.filter(r=>r.status==="initiated").length;
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       <aside className="w-56 bg-gradient-to-b from-slate-900 to-blue-900 text-white flex flex-col flex-shrink-0">
@@ -519,10 +484,10 @@ function MainApp({user,users,setUsers,reqs,setReqs,invites,setInvites,tab,setTab
         </div>
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           {nav.map(([key,label])=>{
-            const badge=(key==="pending"&&pendingCount>0)?pendingCount:(key==="initiated"&&initiatedCount>0)?initiatedCount:null;
+            const b=(key==="pending"&&pc>0)?pc:(key==="initiated"&&ic>0)?ic:null;
             return <button key={key} onClick={()=>setTab(key)} className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition flex items-center justify-between ${tab===key?"bg-white/20 font-bold text-white":"hover:bg-white/10 text-blue-100"}`}>
               <span>{label}</span>
-              {badge&&<span className="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-5 text-center">{badge}</span>}
+              {b&&<span className="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-5 text-center">{b}</span>}
             </button>;
           })}
         </nav>
@@ -550,18 +515,8 @@ function MainApp({user,users,setUsers,reqs,setReqs,invites,setInvites,tab,setTab
 // ── LOGIN ─────────────────────────────────────────────────────────────────
 function LoginPage({users,onLogin}){
   const [email,setEmail]=useState(""),[pwd,setPwd]=useState(""),[err,setErr]=useState("");
-  const login=()=>{
-    const u=users.find(u=>u.email===email&&u.pwd===pwd&&u.status==="active");
-    if(u) onLogin(u); else setErr("Invalid credentials or account inactive.");
-  };
-  const hints=[
-    {label:"Admin",e:"admin@co.com",p:"admin123"},
-    {label:"Manager",e:"manager@co.com",p:"pass123"},
-    {label:"Finance",e:"finance@co.com",p:"pass123"},
-    {label:"Treasury",e:"treasury@co.com",p:"pass123"},
-    {label:"IT Member",e:"alice@co.com",p:"pass123"},
-    {label:"HR Member",e:"bob@co.com",p:"pass123"},
-  ];
+  const login=()=>{const u=users.find(u=>u.email===email&&u.pwd===pwd&&u.status==="active");if(u)onLogin(u);else setErr("Invalid credentials.");};
+  const hints=[{label:"Admin",e:"admin@co.com",p:"admin123"},{label:"Manager",e:"manager@co.com",p:"pass123"},{label:"Finance",e:"finance@co.com",p:"pass123"},{label:"Treasury",e:"treasury@co.com",p:"pass123"},{label:"IT",e:"alice@co.com",p:"pass123"},{label:"HR",e:"bob@co.com",p:"pass123"}];
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8">
@@ -578,9 +533,7 @@ function LoginPage({users,onLogin}){
         </div>
         <div className="mt-6 pt-5 border-t border-gray-100">
           <p className="text-xs text-gray-400 text-center mb-3">Quick Demo Login</p>
-          <div className="flex flex-wrap gap-1.5 justify-center">
-            {hints.map(h=><button key={h.label} onClick={()=>{setEmail(h.e);setPwd(h.p);setErr("");}} className="text-xs bg-gray-100 hover:bg-blue-50 hover:text-blue-700 text-gray-600 px-3 py-1.5 rounded-full transition font-medium border border-transparent hover:border-blue-200">{h.label}</button>)}
-          </div>
+          <div className="flex flex-wrap gap-1.5 justify-center">{hints.map(h=><button key={h.label} onClick={()=>{setEmail(h.e);setPwd(h.p);setErr("");}} className="text-xs bg-gray-100 hover:bg-blue-50 hover:text-blue-700 text-gray-600 px-3 py-1.5 rounded-full font-medium border border-transparent hover:border-blue-200">{h.label}</button>)}</div>
         </div>
       </div>
     </div>
@@ -589,21 +542,20 @@ function LoginPage({users,onLogin}){
 
 // ── ROOT ──────────────────────────────────────────────────────────────────
 function App() {
-  const [users,   setUsers]   = useLocalState("pf:users",    SEED_USERS);
-  const [reqs,    setReqs]    = useLocalState("pf:requests", SEED_REQS);
-  const [invites, setInvites] = useLocalState("pf:invites",  []);
-  const [user,    setUser]    = useState(null);
-  const [tab,     setTab]     = useState("dashboard");
-  const [toast,   setToast]   = useState(null);
+  const [users,  setUsers]  = useLocalState("pf:users",    SEED_USERS);
+  const [reqs,   setReqs]   = useLocalState("pf:requests", SEED_REQS);
+  const [invites,setInvites]= useLocalState("pf:invites",  []);
+  const [user,   setUser]   = useState(null);
+  const [tab,    setTab]    = useState("dashboard");
+  const [toast,  setToast]  = useState(null);
   const notify=(msg,ok=true)=>{setToast({msg,ok});setTimeout(()=>setToast(null),3500);};
   return (
     <div className="font-sans">
       {toast&&<div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg text-white text-sm font-semibold flex items-center gap-2 ${toast.ok?"bg-green-600":"bg-red-600"}`}><span>{toast.ok?"✓":"✗"}</span>{toast.msg}</div>}
       {!user
-        ? <LoginPage users={users} onLogin={u=>{setUser(u);setTab("dashboard");}}/>
-        : <MainApp user={user} users={users} setUsers={setUsers} reqs={reqs} setReqs={setReqs} invites={invites} setInvites={setInvites} tab={tab} setTab={setTab} notify={notify} onLogout={()=>{setUser(null);setTab("dashboard");}}/>}
+        ?<LoginPage users={users} onLogin={u=>{setUser(u);setTab("dashboard");}}/>
+        :<MainApp user={user} users={users} setUsers={setUsers} reqs={reqs} setReqs={setReqs} invites={invites} setInvites={setInvites} tab={tab} setTab={setTab} notify={notify} onLogout={()=>{setUser(null);setTab("dashboard");}}/>}
     </div>
   );
 }
-
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
